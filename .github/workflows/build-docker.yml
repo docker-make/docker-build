@@ -1,0 +1,87 @@
+name: Build Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_directory:
+        description: "选择要构建的目录"
+        required: true
+        type: choice
+        options:
+          - caddy
+          - code
+      registry:
+        description: "镜像仓库地址 (默认 Docker Hub)"
+        required: false
+        default: "docker.io"
+      push_to_registry:
+        description: "是否推送到镜像仓库"
+        required: true
+        type: boolean
+        default: false
+      custom_tag:
+        description: "自定义镜像标签 (留空则使用默认标签)"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录到 Docker Hub (如果需要推送)
+        if: ${{ inputs.push_to_registry }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 提取镜像元数据 (使用自定义标签)
+        id: meta-custom
+        if: ${{ inputs.custom_tag != '' }}
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ inputs.registry }}/${{ secrets.DOCKER_USERNAME }}/${{ inputs.build_directory }}
+          tags: |
+            type=raw,value=${{ inputs.custom_tag }}
+
+      - name: 提取镜像元数据 (使用默认标签)
+        id: meta-default
+        if: ${{ inputs.custom_tag == '' }}
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ inputs.registry }}/${{ secrets.DOCKER_USERNAME }}/${{ inputs.build_directory }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix={{date 'YYYY-MM-DD'}}-
+
+      - name: 构建并推送 Docker 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ inputs.build_directory }}
+          file: ./${{ inputs.build_directory }}/Dockerfile
+          push: ${{ inputs.push_to_registry }}
+          tags: ${{ inputs.custom_tag != '' && steps.meta-custom.outputs.tags || steps.meta-default.outputs.tags }}
+          labels: ${{ inputs.custom_tag != '' && steps.meta-custom.outputs.labels || steps.meta-default.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 输出镜像信息
+        run: |
+          echo "构建完成!"
+          echo "构建目录: ${{ inputs.build_directory }}"
+          echo "镜像标签:"
+          if [ -n "${{ inputs.custom_tag }}" ]; then
+            echo "${{ steps.meta-custom.outputs.tags }}"
+          else
+            echo "${{ steps.meta-default.outputs.tags }}"
+          fi
