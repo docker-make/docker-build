@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --with github.com/xcaddyplugins/caddy-trusted-cloudfront \
     --with github.com/mholt/caddy-l4 \
     --with github.com/mholt/caddy-ratelimit \
-    --with github.com/fabriziosalmi/caddy-waf
+    --with github.com/fabriziosalmi/caddy-waf=github.com/jianxcao/caddy-waf@main
 
 FROM caddy:latest
 
