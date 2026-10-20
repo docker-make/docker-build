@@ -1,4 +1,4 @@
-FROM caddy:builder AS builder
+FROM caddy:2.11.7-builder AS builder
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
@@ -14,6 +14,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --with github.com/porech/caddy-maxmind-geolocation \
     --with github.com/fabriziosalmi/caddy-waf=github.com/jianxcao/caddy-waf@817bf06326ec2940064df2f2ba2be2d6b8a155c2
 
-FROM caddy:latest
+FROM caddy:2.11.7
 
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
